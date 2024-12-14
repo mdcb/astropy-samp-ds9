@@ -28,7 +28,7 @@ class DS9:
                  exit_callback=None,    # callback function to invoke when ds9 dies
                  kill_on_exit=False,    # kill main process on exit
                  # rarely used options  #
-                 poll_alive_time=5,    # is_alive poll thread period time (seconds)
+                 poll_alive_time=5,     # is_alive poll thread period time (seconds)
                  init_retry_time=1,     # time to sleep between retries on init (seconds)
                  debug=False            # debug output
                 ):
@@ -84,7 +84,7 @@ class DS9:
                 time.sleep(init_retry_time)
             # poll_alive
             if poll_alive_time > 0:
-                self.__watcher = threading.Thread(target=self.watch_thread, args=(poll_alive_time,)) # our thread keeps a reference to self, making self undertructible until the thread stops
+                self.__watcher = threading.Thread(target=self.__watch_thread, args=(poll_alive_time,)) # our thread keeps a reference to self, making self undertructible until the thread stops
                 self.__watcher.daemon = True
                 self.__watcher.start()
         except Exception as e:
@@ -135,7 +135,7 @@ class DS9:
                 return self.__samp.enotify(self.__samp_clientId, 'samp.app.ping') == 'OK' # 'OK' response implemented by ds9, not an internal SAMP protocol
         except: return False
 
-    def watch_thread(self, period):
+    def __watch_thread(self, period):
         if self.debug: print(f"watch_thread started - period {period}")
         while True:
             if self.debug: print('...watching')
