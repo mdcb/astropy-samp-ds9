@@ -13,17 +13,28 @@ import subprocess
 import threading
 import time
 
-###
+# environment
+DS9_EXE = os.environ.get('DS9_EXE', '/home/mdcb/work/webrepos/SAOImageDS9/bin/ds9') # requires ds9 v8.7
+SAMP_HUB_PATH = os.environ.get('SAMP_HUB_PATH', f"{os.environ['HOME']}/.samp-ds9") # path to samp files
 
-DS9_EXE = '/home/mdcb/work/webrepos/SAOImageDS9/bin/ds9'
-SAMP_HUB_PATH = f"{os.environ['HOME']}/.samp-lbto"
+# XXX Do not use spaces in title until this issue is resolved https://github.com/SAOImageDS9/SAOImageDS9/issues/206
+# XXX To fix it yourself:
+# XXX diff --git a/ds9/library/samp.tcl b/ds9/library/samp.tcl
+# XXX index 004642c4f..7e984d791 100644
+# XXX --- a/ds9/library/samp.tcl
+# XXX +++ b/ds9/library/samp.tcl
+# XXX @@ -17,7 +17,7 @@ proc SAMPConnectMetadata {} {
+# XXX      global samp
+# XXX      global ds9
+# XXX  
+# XXX -    set map(samp.name) "string $ds9(title)"
+# XXX +    set map(samp.name) "string \"$ds9(title)\""
 
-###
 
 class DS9:
 
     def __init__(self,
-                 title='lbto ds9',      # ds9 window title, and SAMP name
+                 title='ds9SAMP',       # ds9 window title, and SAMP name
                  timeout=15,            # time for ds9 to be fully SAMP functional (seconds)
                  exit_callback=None,    # callback function to invoke when ds9 dies
                  kill_on_exit=False,    # kill main process on exit
@@ -48,7 +59,7 @@ class DS9:
             samp_hub_name = re.sub(r'[^A-Za-z0-9\\.]', '_', samp_hub_name) # sanitized
             self.__samp_hub_file = f"{SAMP_HUB_PATH}/{samp_hub_name}.samp"
             os.environ['SAMP_HUB'] = f"std-lockurl:file://{self.__samp_hub_file}"
-            os.environ['XMODIFIERS'] = '@im=none' # https://github.com/ibus/ibus/issues/2324#issuecomment-996449177
+            os.environ['XMODIFIERS'] = '@im=none' # fix ds9 (Tk) responsiveness on Wayland. see https://github.com/ibus/ibus/issues/2324#issuecomment-996449177
             if self.debug:
                 print(f"SAMP_HUB {os.environ['SAMP_HUB']}")
                 print(f"file {self.__samp_hub_file}")
@@ -129,7 +140,7 @@ class DS9:
                 return c_id
         return None
 
-    def __isalive(self):
+    def alive(self):
         try:
             with self.__lock:
                 return self.__samp.enotify(self.__samp_clientId, 'samp.app.ping') == 'OK' # 'OK' response implemented by ds9, not an internal SAMP protocol
@@ -142,7 +153,7 @@ class DS9:
             if self.__evtexit.wait(timeout=period):
                 if self.debug: print('watch_thread quits gracefully')
                 break
-            if not self.__isalive():
+            if not self.alive():
                 if self.debug: print('watch_thread ds9 is not alive')
                 break
         self.exit(main_thread=False)
