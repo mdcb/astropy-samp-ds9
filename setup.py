@@ -11,16 +11,11 @@ setup(
     author_email='mdcb808@gmail.com',
     license='GPL-3.0',
     packages=['ds9SAMP'],
-    install_requires=['astropy'],
+    install_requires=['astropy'], # XXX 5.3.3 ?
     classifiers=[
         'Intended Audience :: Science/Research',
         'License :: OSI Approved :: GNU General Public License v3 or later (GPLv3+)',
         'Operating System :: POSIX :: Linux',
-        'Programming Language :: Python :: 3',
-        #'Programming Language :: Python :: 2',
-        #'Programming Language :: Python :: 2.7',
-        #'Programming Language :: Python :: 3',
-        #'Programming Language :: Python :: 3.4',
-        #'Programming Language :: Python :: 3.5',
+        'Programming Language :: Python :: 3', # XXX 3.12 ?
     ],
 )
