@@ -34,14 +34,15 @@ SAMP_HUB_PATH = os.environ.get('SAMP_HUB_PATH', f"{os.environ['HOME']}/.samp-ds9
 class DS9:
 
     def __init__(self,
-                 title='ds9SAMP',       # ds9 window title, and SAMP name
-                 timeout=15,            # time for ds9 to be fully SAMP functional (seconds)
-                 exit_callback=None,    # callback function to invoke when ds9 dies
-                 kill_on_exit=False,    # kill main process on exit
-                 # rarely used options  #
-                 poll_alive_time=5,     # is_alive poll thread period time (seconds)
-                 init_retry_time=1,     # time to sleep between retries on init (seconds)
-                 debug=False            # debug output
+                 title='ds9SAMP',                               # ds9 window title, and SAMP name
+                 timeout=15,                                    # time for ds9 to be fully SAMP functional (seconds)
+                 exit_callback=None,                            # callback function to invoke when ds9 dies
+                 kill_on_exit=False,                            # kill main process on exit
+                 ds9args='-geometry 1024x768 -colorbar no',     # ds9 window title, and SAMP name
+                 # rarely used options                          #
+                 poll_alive_time=5,                             # is_alive poll thread period time (seconds)
+                 init_retry_time=1,                             # time to sleep between retries on init (seconds)
+                 debug=False                                    # debug output
                 ):
         self.debug = debug
         self.exit_callback = exit_callback
@@ -60,15 +61,11 @@ class DS9:
             self.__samp_hub_file = f"{SAMP_HUB_PATH}/{samp_hub_name}.samp"
             os.environ['SAMP_HUB'] = f"std-lockurl:file://{self.__samp_hub_file}"
             os.environ['XMODIFIERS'] = '@im=none' # fix ds9 (Tk) responsiveness on Wayland. see https://github.com/ibus/ibus/issues/2324#issuecomment-996449177
-            if self.debug:
-                print(f"SAMP_HUB {os.environ['SAMP_HUB']}")
-                print(f"file {self.__samp_hub_file}")
-            # signal handler
-            pass # XXX TODO
+            if self.debug:print(f"SAMP_HUB: {os.environ['SAMP_HUB']}")
+            # XXX TODO signal handler
             # spawn ds9
-            # XXX -samp arguments so it does not rely on ~/ds9/*.pref
             if self.debug: print('spawning ds9')
-            cmd = f"{DS9_EXE} -title '{title}' -geometry 1024x768 -colorbar no"
+            cmd = f"{DS9_EXE} -samp client yes -samp hub yes -samp web hub no -xpa no -title '{title}' {ds9args}"
             self.__process = subprocess.Popen(shlex.split(cmd), start_new_session=True, env=os.environ)
             # SAMP
             self.__samp = SAMPIntegratedClient(name=f"{title} controller", callable=False)
