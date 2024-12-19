@@ -1,20 +1,20 @@
 #!/usr/bin/env python3
 
-from astropy.samp.errors import SAMPHubError
 from astropy.samp import SAMPIntegratedClient
+from astropy.samp.errors import SAMPHubError
 from datetime import datetime, UTC
 from pathlib import Path
-import atexit
-import os
-import re
-import shlex
-import signal
 import subprocess
 import threading
+import atexit
+import signal
+import shlex
 import time
+import os
+import re
 
 # environment
-DS9_EXE = os.environ.get('DS9_EXE', '/home/mdcb/work/webrepos/SAOImageDS9/bin/ds9') # requires ds9 v8.7
+DS9_EXE = os.environ.get('DS9_EXE', 'ds9v8.7') # requires ds9 >= v8.7
 SAMP_HUB_PATH = os.environ.get('SAMP_HUB_PATH', f"{os.environ['HOME']}/.samp-ds9") # path to samp files
 
 # XXX Do not use spaces in title until this issue is resolved https://github.com/SAOImageDS9/SAOImageDS9/issues/206
@@ -166,8 +166,7 @@ class DS9:
             return self.__samp.ecall_and_wait(self.__samp_clientId, 'ds9.get', f"{int(timeout)}", cmd=cmd)
 
 if __name__ == '__main__':
-    ds9 = DS9('hello world', 250)
-    print('found ds9!')
+    ds9 = DS9('hello world')
     res = ds9.get('version')
     print(res)
     # {'samp.result': {'value': 'hello world 8.7b1'}, 'samp.status': 'samp.ok'}
