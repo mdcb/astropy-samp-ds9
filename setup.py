@@ -2,7 +2,7 @@ from setuptools import setup
 
 setup(
     name='ds9SAMP',
-    version='0.1.1',
+    version='0.1.2',
     description='Interact with SAOImageDS9 using Astropy SAMP',
     long_description='Interact with SAOImageDS9 using Astropy SAMP',
     long_description_content_type='text/x-rst',

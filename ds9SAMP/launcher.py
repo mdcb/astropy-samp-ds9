@@ -65,7 +65,7 @@ class DS9:
             # XXX TODO signal handler
             # spawn ds9
             if self.debug: print('spawning ds9')
-            cmd = f"{DS9_EXE} -samp client yes -samp hub yes -samp web hub no -xpa no -title '{title}' {ds9args}"
+            cmd = f"{DS9_EXE} -samp client yes -samp hub yes -samp web hub no -xpa no -unix none -fifo none -port 0 -title '{title}' {ds9args}"
             self.__process = subprocess.Popen(shlex.split(cmd), start_new_session=True, env=os.environ)
             # SAMP
             self.__samp = SAMPIntegratedClient(name=f"{title} controller", callable=False)
