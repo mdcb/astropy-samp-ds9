@@ -14,22 +14,8 @@ import os
 import re
 
 # environment
-DS9_EXE = os.environ.get('DS9_EXE', 'ds9v8.7') # requires ds9 >= v8.7
+DS9_EXE = os.environ.get('DS9_EXE', 'ds9v8.7') # requires ds9 > v8.7b1
 SAMP_HUB_PATH = os.environ.get('SAMP_HUB_PATH', f"{os.environ['HOME']}/.samp-ds9") # path to samp files
-
-# XXX Do not use spaces in title until this issue is resolved https://github.com/SAOImageDS9/SAOImageDS9/issues/206
-# XXX To fix it yourself:
-# XXX diff --git a/ds9/library/samp.tcl b/ds9/library/samp.tcl
-# XXX index 004642c4f..7e984d791 100644
-# XXX --- a/ds9/library/samp.tcl
-# XXX +++ b/ds9/library/samp.tcl
-# XXX @@ -17,7 +17,7 @@ proc SAMPConnectMetadata {} {
-# XXX      global samp
-# XXX      global ds9
-# XXX
-# XXX -    set map(samp.name) "string $ds9(title)"
-# XXX +    set map(samp.name) "string \"$ds9(title)\""
-
 
 class DS9:
 
@@ -38,12 +24,12 @@ class DS9:
                  timeout=15,                                    # time for ds9 to be fully SAMP functional (seconds)
                  exit_callback=None,                            # callback function to invoke when ds9 dies
                  kill_on_exit=False,                            # kill main process on exit
-                 ds9args='-geometry 1024x768 -colorbar no',     # ds9 window title, and SAMP name
-                 # rarely used options                          #
-                 poll_alive_time=5,                             # is_alive poll thread period time (seconds)
+                 ds9args='',                                    # additional ds9 command line arguments, for example ds9args='-geometry 1024x768 -colorbar no'
+                 # rarely used options
+                 poll_alive_time=5,                             # __watch_thread poll period time (seconds)
                  init_retry_time=1,                             # time to sleep between retries on init (seconds)
-                 debug=False,                                   # debug output
-                 samp_hub_file=None                             # use provided samp_hub_file rather than start a hub from ds9
+                 debug=False,                                   # debug output (very verbose)
+                 samp_hub_file=None                             # use samp_hub_file from an existing hub, rather than start a dedicated one attached to ds9
                 ):
         self.debug = debug
         self.exit_callback = exit_callback
@@ -54,7 +40,6 @@ class DS9:
         # exit handler
         atexit.register(self.exit, use_callback=False, main_thread=True)
         try:
-            # samp_hub -L=INFO  -l toto -f ~/.samp-ds9/toto.samp
             if samp_hub_file:
                 samp_hub_cmd = '-samp hub no'
                 self.__samp_hub_file = None
@@ -93,16 +78,26 @@ class DS9:
                 if self.debug: print('looking for ds9')
                 self.__samp_clientId = self.__get_samp_clientId(title)
                 if self.__samp_clientId:
-                    if self.debug: print('found ds9')
+                    if self.debug: print('ds9 found')
                     break
                 if time.time() - tstart > timeout: raise RuntimeError(f"ds9 not found (timeout: {timeout})")
                 time.sleep(init_retry_time)
+            # wait for live, before starting the poll_alive thread
+            while True:
+                if self.debug: print('waiting for alive')
+                if self.alive():
+                    if self.debug: print('ds9 is alive')
+                    break
+                if time.time() - tstart > timeout: raise RuntimeError(f"ds9 not alive (timeout: {timeout})")
+                time.sleep(init_retry_time)
+
             # poll_alive
             if poll_alive_time > 0:
                 self.__watcher = threading.Thread(target=self.__watch_thread, args=(poll_alive_time,)) # our thread keeps a reference to self, making self undertructible until the thread stops
                 self.__watcher.daemon = True
                 self.__watcher.start()
         except Exception as e:
+            print(f"DS9 initialization failed: {e}")
             self.exit()
             raise e
 
@@ -125,7 +120,7 @@ class DS9:
         try: self.__process.terminate() # allows ds9 to clean itself (hub), do not use kill()
         except: pass
         if self.__samp_hub_file:
-            if self.debug: print('rm hubfile')
+            if self.debug: print('delete __samp_hub_file')
             try: Path(self.__samp_hub_file).unlink(missing_ok=True)
             except: pass
         if self.exit_callback:
@@ -138,21 +133,25 @@ class DS9:
             except: pass
 
     def __get_samp_clientId(self, title):
-        for c_id in self.__samp.get_subscribed_clients('ds9.set'): # note: it's a dict
-            c_meta = self.__samp.get_metadata(c_id)
-            if self.debug: print(f"...clientId {c_id} = {c_meta['samp.name']}")
-            if c_meta['samp.name'] == title:
-                return c_id
-        return None
+        with self.__lock:
+            for c_id in self.__samp.get_subscribed_clients('ds9.set'): # note: it's a dict
+                c_meta = self.__samp.get_metadata(c_id)
+                if self.debug: print(f"...clientId {c_id} = {c_meta['samp.name']}")
+                if c_meta['samp.name'] == title:
+                    return c_id
+            return None
 
     def alive(self):
-        try:
-            with self.__lock:
+        if self.debug: print(f"check alive, needs lock")
+        with self.__lock:
+            try:
+                if self.debug: print(f"ping issued")
                 msg = self.__samp.enotify(self.__samp_clientId, 'samp.app.ping')
                 if self.debug: print(f"ping replied >{msg}<")
                 # ds9 = 'OK', astropy.samp.hub = {} ... assume any reply is ok
                 return True
-        except: return False
+            except:
+                return False
 
     def __watch_thread(self, period):
         if self.debug: print(f"watch_thread started - period {period}")
@@ -170,13 +169,15 @@ class DS9:
     def set(self, *cmds, timeout=10):
         with self.__lock:
             for cmd in cmds:
+                if self.debug: print(f"set {cmd}")
                 self.__samp.ecall_and_wait(self.__samp_clientId, 'ds9.set', f"{int(timeout)}", cmd=cmd)
 
-    def get(self, cmd, timeout=10):
+    def get(self, cmd, timeout=0): # some commands like 'iexam key coordinate' are blocking, use timeout=0 by default
         with self.__lock:
-            # {'samp.result': {'value': '...'}, 'samp.status': 'samp.ok'}
+            if self.debug: print(f"get {cmd}")
             rc = self.__samp.ecall_and_wait(self.__samp_clientId, 'ds9.get', f"{int(timeout)}", cmd=cmd)
-            if self.debug: print(f"get {cmd} return: {rc}")
+            if self.debug: print(f"returned: {rc}")
+            # {'samp.result': {'value': '...'}, 'samp.status': 'samp.ok'}
             if rc['samp.status'] == 'samp.ok':
                 return rc['samp.result'].get('value')
             else:
