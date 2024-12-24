@@ -54,6 +54,7 @@ class DS9:
         # exit handler
         atexit.register(self.exit, use_callback=False, main_thread=True)
         try:
+            # samp_hub -L=INFO  -l toto -f ~/.samp-ds9/toto.samp
             if samp_hub_file:
                 samp_hub_cmd = '-samp hub no'
                 self.__samp_hub_file = None
@@ -121,7 +122,7 @@ class DS9:
         try: self.set('exit')
         except: pass
         if self.debug: print('kill')
-        try: self.__process.kill() # XXX terminate() ?
+        try: self.__process.terminate() # allows ds9 to clean itself (hub), do not use kill()
         except: pass
         if self.__samp_hub_file:
             if self.debug: print('rm hubfile')
