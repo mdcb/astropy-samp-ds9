@@ -26,7 +26,7 @@ class DS9:
                  kill_on_exit=False,                            # kill main process on exit
                  ds9args='',                                    # additional ds9 command line arguments, for example ds9args='-geometry 1024x768 -colorbar no'
                  # rarely used options
-                 poll_alive_time=5,                             # __watch_thread poll period time (seconds)
+                 poll_alive_time=5,                             # watcher thread poll time (seconds)
                  init_retry_time=1,                             # time to sleep between retries on init (seconds)
                  debug=False,                                   # debug output (very verbose)
                  samp_hub_file=None                             # use samp_hub_file from an existing hub, rather than start a dedicated one attached to ds9
@@ -34,10 +34,10 @@ class DS9:
         self.debug = debug
         self.exit_callback = exit_callback
         self.kill_on_exit = kill_on_exit
+        self.__watcher = None               # our watcher thread
         self.__lock = threading.Lock()      # Threaded SAMP access
-        self.__evtexit = threading.Event()  # event to exit
-        self.__pid = os.getpid()            # process PID
-        # exit handler
+        self.__evtexit = threading.Event()  # event to exit watcher
+        self.__pid = os.getpid()            # main process PID
         atexit.register(self.exit, use_callback=False, main_thread=True)
         try:
             if samp_hub_file:
@@ -55,11 +55,10 @@ class DS9:
             os.environ['SAMP_HUB'] = f"std-lockurl:file://{self.__samp_hub_file}"
             os.environ['XMODIFIERS'] = '@im=none' # fix ds9 (Tk) responsiveness on Wayland. see https://github.com/ibus/ibus/issues/2324#issuecomment-996449177
             if self.debug:print(f"SAMP_HUB: {os.environ['SAMP_HUB']}")
-            # XXX TODO signal handler
             # spawn ds9
             if self.debug: print('spawning ds9')
             self.__process = subprocess.Popen(shlex.split(cmd), start_new_session=True, env=os.environ)
-            # SAMP
+            # SAMP client
             self.__samp = SAMPIntegratedClient(name=f"{title} controller", callable=False)
             self.__samp_clientId = None
             tstart = time.time()
@@ -82,7 +81,7 @@ class DS9:
                     break
                 if time.time() - tstart > timeout: raise RuntimeError(f"ds9 not found (timeout: {timeout})")
                 time.sleep(init_retry_time)
-            # wait for live, before starting the poll_alive thread
+            # wait for alive, before starting the poll_alive thread
             while True:
                 if self.debug: print('waiting for alive')
                 if self.alive():
@@ -90,7 +89,7 @@ class DS9:
                     break
                 if time.time() - tstart > timeout: raise RuntimeError(f"ds9 not alive (timeout: {timeout})")
                 time.sleep(init_retry_time)
-            # poll_alive
+            # start poll_alive thread
             if poll_alive_time > 0:
                 self.__watcher = threading.Thread(target=self.__watch_thread, args=(poll_alive_time,)) # our thread keeps a reference to self, making self undertructible until the thread stops
                 self.__watcher.daemon = True
@@ -108,7 +107,7 @@ class DS9:
         if self.debug: print('__evtexit')
         try: self.__evtexit.set()
         except: pass
-        if main_thread:
+        if main_thread and self.__watcher:
             if self.debug: print('join')
             try: self.__watcher.join(timeout=1)
             except: pass
