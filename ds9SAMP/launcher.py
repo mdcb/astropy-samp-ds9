@@ -26,7 +26,7 @@ SAMP_HUB_PATH = os.environ.get('SAMP_HUB_PATH', f"{os.environ['HOME']}/.samp-ds9
 # XXX @@ -17,7 +17,7 @@ proc SAMPConnectMetadata {} {
 # XXX      global samp
 # XXX      global ds9
-# XXX  
+# XXX
 # XXX -    set map(samp.name) "string $ds9(title)"
 # XXX +    set map(samp.name) "string \"$ds9(title)\""
 
@@ -163,10 +163,16 @@ class DS9:
 
     def get(self, cmd, timeout=10):
         with self.__lock:
-            return self.__samp.ecall_and_wait(self.__samp_clientId, 'ds9.get', f"{int(timeout)}", cmd=cmd)
+            # {'samp.result': {'value': '...'}, 'samp.status': 'samp.ok'}
+            rc = self.__samp.ecall_and_wait(self.__samp_clientId, 'ds9.get', f"{int(timeout)}", cmd=cmd)
+            if self.debug: print(f"get {cmd} return: {rc}")
+            if rc['samp.status'] == 'samp.ok':
+                return rc['samp.result'].get('value')
+            else:
+                raise RuntimeError(f"get {cmd} returned: {rc}")
 
 if __name__ == '__main__':
     ds9 = DS9('hello world')
     res = ds9.get('version')
-    print(res)
-    # {'samp.result': {'value': 'hello world 8.7b1'}, 'samp.status': 'samp.ok'}
+    print(res) # 'hello world 8.7b1'
+
