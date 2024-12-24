@@ -42,7 +42,8 @@ class DS9:
                  # rarely used options                          #
                  poll_alive_time=5,                             # is_alive poll thread period time (seconds)
                  init_retry_time=1,                             # time to sleep between retries on init (seconds)
-                 debug=False                                    # debug output
+                 debug=False,                                   # debug output
+                 samp_hub_file=None                             # use provided samp_hub_file rather than start a hub from ds9
                 ):
         self.debug = debug
         self.exit_callback = exit_callback
@@ -53,19 +54,24 @@ class DS9:
         # exit handler
         atexit.register(self.exit, use_callback=False, main_thread=True)
         try:
-            # unique SAMP_HUB from title, timestamp, process PID
-            Path(SAMP_HUB_PATH).mkdir(mode=0o700, parents=True, exist_ok=True)
-            tnow = datetime.now(UTC)
-            samp_hub_name = f"{title}_utc{tnow.strftime('%Y%m%dT%H%M%S')}.{tnow.microsecond:06d}_pid{self.__pid}"
-            samp_hub_name = re.sub(r'[^A-Za-z0-9\\.]', '_', samp_hub_name) # sanitized
-            self.__samp_hub_file = f"{SAMP_HUB_PATH}/{samp_hub_name}.samp"
+            if samp_hub_file:
+                samp_hub_cmd = '-samp hub no'
+                self.__samp_hub_file = None
+            else:
+                samp_hub_cmd = '-samp hub yes'
+                # generate a unique SAMP_HUB from title, timestamp, process PID
+                Path(SAMP_HUB_PATH).mkdir(mode=0o700, parents=True, exist_ok=True)
+                tnow = datetime.now(UTC)
+                samp_hub_name = f"{title}_utc{tnow.strftime('%Y%m%dT%H%M%S')}.{tnow.microsecond:06d}_pid{self.__pid}"
+                samp_hub_name = re.sub(r'[^A-Za-z0-9\\.]', '_', samp_hub_name) # sanitized
+                self.__samp_hub_file = f"{SAMP_HUB_PATH}/{samp_hub_name}.samp"
+            cmd = f"{DS9_EXE} -samp client yes {samp_hub_cmd} -samp web hub no -xpa no -unix none -fifo none -port 0 -title '{title}' {ds9args}"
             os.environ['SAMP_HUB'] = f"std-lockurl:file://{self.__samp_hub_file}"
             os.environ['XMODIFIERS'] = '@im=none' # fix ds9 (Tk) responsiveness on Wayland. see https://github.com/ibus/ibus/issues/2324#issuecomment-996449177
             if self.debug:print(f"SAMP_HUB: {os.environ['SAMP_HUB']}")
             # XXX TODO signal handler
             # spawn ds9
             if self.debug: print('spawning ds9')
-            cmd = f"{DS9_EXE} -samp client yes -samp hub yes -samp web hub no -xpa no -unix none -fifo none -port 0 -title '{title}' {ds9args}"
             self.__process = subprocess.Popen(shlex.split(cmd), start_new_session=True, env=os.environ)
             # SAMP
             self.__samp = SAMPIntegratedClient(name=f"{title} controller", callable=False)
@@ -117,9 +123,10 @@ class DS9:
         if self.debug: print('kill')
         try: self.__process.kill() # XXX terminate() ?
         except: pass
-        if self.debug: print('rm hubfile')
-        try: Path(self.__samp_hub_file).unlink(missing_ok=True)
-        except: pass
+        if self.__samp_hub_file:
+            if self.debug: print('rm hubfile')
+            try: Path(self.__samp_hub_file).unlink(missing_ok=True)
+            except: pass
         if self.exit_callback:
             if self.debug: print('exit_callback')
             try: self.exit_callback()
@@ -178,4 +185,3 @@ if __name__ == '__main__':
     ds9 = DS9('hello world')
     res = ds9.get('version')
     print(res) # 'hello world 8.7b1'
-
