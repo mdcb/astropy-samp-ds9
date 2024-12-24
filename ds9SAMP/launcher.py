@@ -14,7 +14,7 @@ import os
 import re
 
 # environment
-DS9_EXE = os.environ.get('DS9_EXE', 'ds9v8.7') # requires ds9 > v8.7b1
+DS9_EXE = os.environ.get('DS9_EXE', 'ds9v8.7') # requires ds9 >= v8.7
 SAMP_HUB_PATH = os.environ.get('SAMP_HUB_PATH', f"{os.environ['HOME']}/.samp-ds9") # path to samp files
 
 class DS9:
@@ -90,7 +90,6 @@ class DS9:
                     break
                 if time.time() - tstart > timeout: raise RuntimeError(f"ds9 not alive (timeout: {timeout})")
                 time.sleep(init_retry_time)
-
             # poll_alive
             if poll_alive_time > 0:
                 self.__watcher = threading.Thread(target=self.__watch_thread, args=(poll_alive_time,)) # our thread keeps a reference to self, making self undertructible until the thread stops
@@ -142,7 +141,6 @@ class DS9:
             return None
 
     def alive(self):
-        if self.debug: print(f"check alive, needs lock")
         with self.__lock:
             try:
                 if self.debug: print(f"ping issued")
