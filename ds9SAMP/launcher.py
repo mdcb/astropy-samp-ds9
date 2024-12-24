@@ -140,7 +140,10 @@ class DS9:
     def alive(self):
         try:
             with self.__lock:
-                return self.__samp.enotify(self.__samp_clientId, 'samp.app.ping') == 'OK' # 'OK' response implemented by ds9, not an internal SAMP protocol
+                msg = self.__samp.enotify(self.__samp_clientId, 'samp.app.ping')
+                if self.debug: print(f"ping replied >{msg}<")
+                # ds9 = 'OK', astropy.samp.hub = {} ... assume any reply is ok
+                return True
         except: return False
 
     def __watch_thread(self, period):
