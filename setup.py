@@ -1,16 +1,16 @@
 from setuptools import setup
 
 setup(
-    name='ds9SAMP',
+    name='astropy-samp-ds9',
     version='0.1.5',
-    description='Interact with SAOImageDS9 using Astropy SAMP',
-    long_description='Interact with SAOImageDS9 using Astropy SAMP',
+    description='Launch and interact with SAOImageDS9 using Astropy SAMP',
+    long_description='Launch and interact with SAOImageDS9 using Astropy SAMP',
     long_description_content_type='text/x-rst',
-    url='https://github.com/mdcb/ds9SAMP',
+    url='https://github.com/mdcb/astropy-samp-ds9',
     author='Matthieu Bec',
     author_email='mdcb808@gmail.com',
     license='GPL-3.0',
-    packages=['ds9SAMP'],
+    packages=['astropy_samp_ds9'],
     install_requires=['astropy'], # XXX 5.3.3 ?
     classifiers=[
         'Intended Audience :: Science/Research',

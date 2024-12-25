@@ -1,5 +1,5 @@
-ds9SAMP
-=======
+astropy-samp-ds9
+================
 
 Launch and interact with [SAOImageDS9](https://github.com/SAOImageDS9/SAOImageDS9) using the [SAMP protocol](http://www.ivoa.net/Documents/latest/SAMP.html), and client libraries provided by [Astropy SAMP](https://docs.astropy.org/en/stable/samp/index.html).
 
@@ -9,7 +9,7 @@ Example
 -------
 
 ```
-from ds9SAMP.launcher import DS9
+from astropy_samp_ds9.launcher import DS9
 
 ds9 = DS9(title='hello world')
 res = ds9.get('version')
