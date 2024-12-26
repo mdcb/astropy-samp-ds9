@@ -23,6 +23,7 @@ class DS9:
                  title='ds9SAMP',                               # ds9 window title, and SAMP name
                  timeout=15,                                    # time for ds9 to be fully SAMP functional (seconds)
                  exit_callback=None,                            # callback function to invoke when ds9 dies
+                 kill_ds9_on_exit=True,                         # kill ds9 on exit
                  kill_on_exit=False,                            # kill main process on exit
                  ds9args='',                                    # additional ds9 command line arguments, for example ds9args='-geometry 1024x768 -colorbar no'
                  # rarely used options
@@ -33,6 +34,7 @@ class DS9:
                 ):
         self.debug = debug
         self.exit_callback = exit_callback
+        self.kill_ds9_on_exit = kill_ds9_on_exit
         self.kill_on_exit = kill_on_exit
         self.__watcher = None               # our watcher thread
         self.__lock = threading.Lock()      # Threaded SAMP access
@@ -112,23 +114,24 @@ class DS9:
             if self.debug: print('join')
             try: self.__watcher.join(timeout=1)
             except: pass
-        if self.debug: print('exit')
-        try: self.set('exit')
-        except: pass
-        if self.debug: print('kill')
-        try: self.__process.terminate() # allows ds9 to clean itself (hub), do not use kill()
-        except: pass
-        if self.__samp_hub_file:
-            if self.debug: print('delete __samp_hub_file')
-            try: Path(self.__samp_hub_file).unlink(missing_ok=True)
+        if self.kill_ds9_on_exit:
+            if self.debug: print('exit')
+            try: self.set('exit')
             except: pass
+            if self.debug: print('terminate ds9')
+            try: self.__process.terminate() # allows ds9 to clean itself (hub), do not use kill()
+            except: pass
+            if self.__samp_hub_file:
+                if self.debug: print('delete __samp_hub_file')
+                try: Path(self.__samp_hub_file).unlink(missing_ok=True)
+                except: pass
         if self.exit_callback:
             if self.debug: print('exit_callback')
             try: self.exit_callback()
             except: pass
         if self.kill_on_exit:
-            if self.debug: print('kill_on_exit')
-            try: os.kill(self.__pid, signal.SIGTERM)
+            if self.debug: print('kill main')
+            try: os.kill(self.__pid, signal.SIGTERM) # allow atexit hanlders
             except: pass
 
     def __get_samp_clientId(self, title):
