@@ -15,7 +15,7 @@ import os
 import re
 
 # environment
-DS9_EXE = os.environ.get('DS9_EXE', 'ds9v8.7') # requires ds9 >= v8.7
+DS9_EXE = os.environ.get('DS9_EXE', 'ds9') # requires ds9 >= v8.7
 SAMP_HUB_PATH = os.environ.get('SAMP_HUB_PATH', f"{os.environ['HOME']}/.samp-ds9") # path to samp files
 
 class DS9:
