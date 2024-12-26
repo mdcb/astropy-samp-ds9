@@ -42,6 +42,7 @@ class DS9:
         try:
             if samp_hub_file:
                 samp_hub_cmd = '-samp hub no'
+                samp_hub_file = os.path.realpath(samp_hub_file)
                 self.__samp_hub_file = None
             else:
                 samp_hub_cmd = '-samp hub yes'
@@ -50,9 +51,9 @@ class DS9:
                 tnow = datetime.now(UTC)
                 samp_hub_name = f"{title}_utc{tnow.strftime('%Y%m%dT%H%M%S')}.{tnow.microsecond:06d}_pid{self.__pid}"
                 samp_hub_name = re.sub(r'[^A-Za-z0-9\\.]', '_', samp_hub_name) # sanitized
-                self.__samp_hub_file = f"{SAMP_HUB_PATH}/{samp_hub_name}.samp"
+                samp_hub_file = self.__samp_hub_file = f"{SAMP_HUB_PATH}/{samp_hub_name}.samp"
             cmd = f"{DS9_EXE} -samp client yes {samp_hub_cmd} -samp web hub no -xpa no -unix none -fifo none -port 0 -title '{title}' {ds9args}"
-            os.environ['SAMP_HUB'] = f"std-lockurl:file://{self.__samp_hub_file}"
+            os.environ['SAMP_HUB'] = f"std-lockurl:file://{samp_hub_file}"
             os.environ['XMODIFIERS'] = '@im=none' # fix ds9 (Tk) responsiveness on Wayland. see https://github.com/ibus/ibus/issues/2324#issuecomment-996449177
             if self.debug:print(f"SAMP_HUB: {os.environ['SAMP_HUB']}")
             # spawn ds9
