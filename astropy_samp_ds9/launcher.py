@@ -10,6 +10,7 @@ import atexit
 import signal
 import shlex
 import time
+import sys
 import os
 import re
 
@@ -69,7 +70,16 @@ class DS9:
             while True:
                 if self.debug: print('looking for SAMP hub ...')
                 try:
-                    self.__samp.connect() # XXX supress output: Downloading ...  test: sys.stdout.isatty(), show_progress is not accessible from astropy/utils/data.py
+                    # XXX suppress show_progress output from astropy/utils/data.py
+                    # overriding isatty
+                    __tty = hasattr(sys.stdout, 'isatty') and sys.stdout.isatty()
+                    if __tty:
+                        __tty= getattr(sys.stdout, 'isatty')
+                        sys.stdout.isatty = lambda: False
+                    # connect
+                    self.__samp.connect()
+                    # undo isatty hack
+                    if __tty: sys.stdout.isatty = __tty
                     if self.debug: print('found SAMP hub')
                     break
                 except SAMPHubError:
