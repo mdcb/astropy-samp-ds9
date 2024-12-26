@@ -37,6 +37,7 @@ class DS9:
         self.exit_callback = exit_callback
         self.kill_ds9_on_exit = kill_ds9_on_exit
         self.kill_on_exit = kill_on_exit
+        self.__init_retry_time = init_retry_time
         self.__watcher = None               # our watcher thread
         self.__lock = threading.Lock()      # Threaded SAMP access
         self.__evtexit = threading.Event()  # event to exit watcher
@@ -46,61 +47,61 @@ class DS9:
             if samp_hub_file:
                 samp_hub_cmd = '-samp hub no'
                 samp_hub_file = os.path.realpath(samp_hub_file)
-                self.__samp_hub_file = None
+                self.__samp_hub_file = None # unmanaged (external)
+                ds9_ishub = False
+                ds9_spawn = False
+                hub_timeout = 1 # the hub should be up already
             else:
                 samp_hub_cmd = '-samp hub yes'
                 # generate a unique SAMP_HUB from title, timestamp, process PID
                 Path(SAMP_HUB_PATH).mkdir(mode=0o700, parents=True, exist_ok=True)
                 tnow = datetime.now(UTC)
-                samp_hub_name = f"{title}_utc{tnow.strftime('%Y%m%dT%H%M%S')}.{tnow.microsecond:06d}_pid{self.__pid}"
-                samp_hub_name = re.sub(r'[^A-Za-z0-9\\.]', '_', samp_hub_name) # sanitized
+                samp_hub_name = f"ds9_{title}_utc{tnow.strftime('%Y%m%dT%H%M%S')}.{tnow.microsecond:06d}_pid{self.__pid}"
+                samp_hub_name = re.sub(r'[^A-Za-z0-9\.:]', '_', samp_hub_name) # sanitized
                 samp_hub_file = self.__samp_hub_file = f"{SAMP_HUB_PATH}/{samp_hub_name}.samp"
+                ds9_ishub = True
+                ds9_spawn = True
+                hub_timeout = timeout
+
             cmd = f"{DS9_EXE} -samp client yes {samp_hub_cmd} -samp web hub no -xpa no -unix none -fifo none -port 0 -title '{title}' {ds9args}"
             os.environ['SAMP_HUB'] = f"std-lockurl:file://{samp_hub_file}"
             os.environ['XMODIFIERS'] = '@im=none' # fix ds9 (Tk) responsiveness on Wayland. see https://github.com/ibus/ibus/issues/2324#issuecomment-996449177
             if self.debug:print(f"SAMP_HUB: {os.environ['SAMP_HUB']}")
-            # spawn ds9
-            if self.debug: print('spawning ds9')
-            self.__process = subprocess.Popen(shlex.split(cmd), start_new_session=True, env=os.environ)
+
             # SAMP client
             self.__samp = SAMPIntegratedClient(name=f"{title} controller", callable=False)
             self.__samp_clientId = None
-            tstart = time.time()
-            # wait for SAMP hub
-            while True:
-                if self.debug: print('looking for SAMP hub ...')
+
+            if not ds9_ishub:
+                self.__connect_hub(hub_timeout)
                 try:
-                    # XXX suppress show_progress output from astropy/utils/data.py
-                    # overriding isatty
-                    __tty = hasattr(sys.stdout, 'isatty') and sys.stdout.isatty()
-                    if __tty:
-                        __tty= getattr(sys.stdout, 'isatty')
-                        sys.stdout.isatty = lambda: False
-                    # connect
-                    self.__samp.connect()
-                    # undo isatty hack
-                    if __tty: sys.stdout.isatty = __tty
-                    if self.debug: print('found SAMP hub')
-                    break
-                except SAMPHubError:
-                    if time.time() - tstart > timeout: raise RuntimeError(f"hub not found (timeout: {timeout})")
-                    time.sleep(init_retry_time)
-            # wait for ds9
-            while True:
-                if self.debug: print('looking for ds9')
-                self.__samp_clientId = self.__get_samp_clientId(title)
-                if self.__samp_clientId:
-                    if self.debug: print('ds9 found')
-                    break
-                if time.time() - tstart > timeout: raise RuntimeError(f"ds9 not found (timeout: {timeout})")
-                time.sleep(init_retry_time)
+                    self.__connect_ds9(title, hub_timeout)
+                    ds9_spawn = False
+                except:
+                    # ds9 not found, spawn it
+                    ds9_spawn = True
+
+            if ds9_spawn:
+                # spawn ds9
+                if self.debug: print('spawning ds9')
+                self.__process = subprocess.Popen(shlex.split(cmd), start_new_session=True, env=os.environ)
+            else:
+                self.__process = None
+
+            # wait for SAMP hub
+            if ds9_ishub:
+                self.__connect_hub(hub_timeout)
+
+            self.__connect_ds9(title, timeout)
+
             # wait for alive, before starting the poll_alive thread
+            __tstart = time.time()
             while True:
                 if self.debug: print('waiting for alive')
                 if self.alive():
                     if self.debug: print('ds9 is alive')
                     break
-                if time.time() - tstart > timeout: raise RuntimeError(f"ds9 not alive (timeout: {timeout})")
+                if time.time() - __tstart > timeout: raise TimeoutError(f"ds9 not alive (timeout: {timeout})")
                 time.sleep(init_retry_time)
             # start poll_alive thread
             if poll_alive_time > 0:
@@ -128,9 +129,10 @@ class DS9:
             if self.debug: print('exit')
             try: self.set('exit')
             except: pass
-            if self.debug: print('terminate ds9')
-            try: self.__process.terminate() # allows ds9 to clean itself (hub), do not use kill()
-            except: pass
+            if self.__process:
+                if self.debug: print('terminate ds9')
+                try: self.__process.terminate() # allows ds9 to clean itself (hub), do not use kill()
+                except: pass
             if self.__samp_hub_file:
                 if self.debug: print('delete __samp_hub_file')
                 try: Path(self.__samp_hub_file).unlink(missing_ok=True)
@@ -152,6 +154,41 @@ class DS9:
                 if c_meta['samp.name'] == title:
                     return c_id
             return None
+
+    def __connect_hub(self, timeout):
+        __tstart = time.time()
+        # XXX suppress show_progress output from astropy/utils/data.py, overriding isatty
+        __hub_found = False
+        __tty = hasattr(sys.stdout, 'isatty') and sys.stdout.isatty()
+        if __tty:
+            __tty= getattr(sys.stdout, 'isatty')
+            sys.stdout.isatty = lambda: False
+        while True:
+            if self.debug: print('SAMP hub connecting...')
+            try:
+                # connect
+                self.__samp.connect()
+                __hub_found = True
+                if self.debug: print('SAMP hub connected')
+                break
+            except SAMPHubError:
+                if time.time() - __tstart > timeout: break
+                time.sleep(self.__init_retry_time)
+        # undo isatty hack
+        if __tty: sys.stdout.isatty = __tty
+        if not __hub_found: raise TimeoutError(f"SAMP hub connect timeout: {timeout}")
+
+    def __connect_ds9(self, title, timeout):
+        __tstart = time.time()
+        # wait for ds9
+        while True:
+            if self.debug: print('DS9 connecting...')
+            self.__samp_clientId = self.__get_samp_clientId(title)
+            if self.__samp_clientId:
+                if self.debug: print('DS9 connected')
+                break
+            if time.time() - __tstart > timeout: raise TimeoutError(f"DS9 connect timeout: {timeout}")
+            time.sleep(self.__init_retry_time)
 
     def alive(self):
         with self.__lock:
@@ -183,7 +220,7 @@ class DS9:
                 if self.debug: print(f"set {cmd}")
                 self.__samp.ecall_and_wait(self.__samp_clientId, 'ds9.set', f"{int(timeout)}", cmd=cmd)
 
-    def get(self, cmd, timeout=0): # some commands like 'iexam key coordinate' are blocking, use timeout=0 by default
+    def get(self, cmd, timeout=0): # some commands like 'iexam key coordinate' are blocking, use timeout=0 by default XXX chnage the default to a reasonable value, use 0 when needed by the user
         with self.__lock:
             if self.debug: print(f"get {cmd}")
             rc = self.__samp.ecall_and_wait(self.__samp_clientId, 'ds9.get', f"{int(timeout)}", cmd=cmd)

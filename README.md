@@ -6,6 +6,8 @@ Launch and interact with [SAOImageDS9](https://github.com/SAOImageDS9/SAOImageDS
 Example
 -------
 
+* single ds9 instance (managing its own hub)
+
 ```
 from astropy_samp_ds9.launcher import DS9
 
@@ -16,13 +18,27 @@ ds9.set('mosaicimage wcs {my.fits}')
 res = ds9.get('iexam key coordinate')
 ```
 
+* ds9 instance(s) attached to an external hub. Those can be attached, re-attached, and controlled from different sessions.
+
+```
+from astropy_samp_ds9.hublauncher import DS9Hub
+from astropy_samp_ds9.launcher import DS9
+
+hub = DS9Hub(name='myhub')
+samp_hub_file = hub.samp_hub_file
+
+ds9red = DS9(title='red channel', kill_ds9_on_exit=False, samp_hub_file=samp_hub_file)
+ds9blue = DS9(title='blue channel', kill_ds9_on_exit=False, samp_hub_file=samp_hub_file)
+
+```
+
 Environment
 -----------
 
 * DS9_EXE
 
-This package requires SAOImageDS9 >= 8.7 (as of 2024-12-26, yet to be released on official channels, but available from github).
-By default, it uses `ds9` that satisfies this release and is in your PATH.
+This package requires SAOImageDS9 >= 8.7b1.
+By default, it uses `ds9` that must satisfy this version and found in your PATH.
 
 If you have several ds9 installations on your machine, or ds9 is not in your path, use
 the DS9_EXE environment to specify the ds9 executable location.
@@ -30,13 +46,17 @@ For example: `export DS9_EXE=/usr/local/ds9/8.7/bin/ds9`
 
 * SAMP_HUB_PATH
 
-The directoty being used for SAMP_HUB files.
+The directory used to store SAMP_HUB files.
 By default, it will use `$HOME/.samp-ds9/`, and create this directory as needed.
 
+* SAMP_HUB_EXE
+
+The samp_hub exectuable provided by astropy.
+By default, it uses `samp_hub` that must be in your PATH.
 
 Miscellaneous
 -------------
 
 More advanced features include: exit handler, use pre-existing SAMP hub, etc.
-As of now, this project has no documention. Read the code!
+As of now, the documention is lacking and still WIP. Read the code!
 
