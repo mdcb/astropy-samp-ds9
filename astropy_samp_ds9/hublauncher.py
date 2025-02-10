@@ -45,7 +45,7 @@ class DS9Hub:
             # spawn a new one
             cmd = f"{SAMP_HUB_EXE} --no-web-profile --label \"{name}\"" #  --lockfile {self.samp_hub_file}
             if debug: cmd += f" --log-output {SAMP_HUB_PATH}/{samp_hub_name}.log --log-level DEBUG"
-            else: cmd += ' --log-level CRITICAL'
+            else: cmd += ' --log-level ERROR'
             __process = subprocess.Popen(shlex.split(cmd), start_new_session=True, env=os.environ)
             if not self._connect_hub(timeout=timeout, init_retry_time=init_retry_time, debug=debug):
                 try: __process.terminate()
