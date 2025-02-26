@@ -27,6 +27,7 @@ class DS9:
                  kill_ds9_on_exit=True,                         # kill ds9 on exit
                  kill_on_exit=False,                            # kill main process on exit
                  ds9args='',                                    # additional ds9 command line arguments, for example ds9args='-geometry 1024x768 -colorbar no'
+                 noiraf=True,                                   # append command line arguments to disable iraf interactions
                  # rarely used options
                  poll_alive_time=5,                             # watcher thread poll time (seconds)
                  init_retry_time=1,                             # time to sleep between retries on init (seconds)
@@ -63,7 +64,9 @@ class DS9:
                 ds9_spawn = True
                 hub_timeout = timeout
 
-            cmd = f"{DS9_EXE} -samp client yes {samp_hub_cmd} -samp web hub no -xpa no -unix none -fifo none -port 0 -title '{title}' {ds9args}"
+            if noiraf: ds9args += ' -xpa no -unix none -fifo none -port 0'
+
+            cmd = f"{DS9_EXE} -samp client yes {samp_hub_cmd} -samp web hub no -title '{title}' {ds9args}"
             os.environ['SAMP_HUB'] = f"std-lockurl:file://{samp_hub_file}"
             os.environ['XMODIFIERS'] = '@im=none' # fix ds9 (Tk) responsiveness on Wayland. see https://github.com/ibus/ibus/issues/2324#issuecomment-996449177
             if self.debug:print(f"SAMP_HUB: {os.environ['SAMP_HUB']}")
