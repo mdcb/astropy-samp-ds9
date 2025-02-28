@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 
 from astropy.samp import SAMPIntegratedClient
-from astropy.samp.errors import SAMPHubError
+from astropy.samp.errors import SAMPHubError, SAMPProxyError
 from pathlib import Path
 import subprocess
 import sys
@@ -68,7 +68,8 @@ class DS9Hub:
                 # __samp.disconnect()
                 __hub_found = True
                 break
-            except SAMPHubError:
+            except (SAMPHubError, SAMPProxyError) as e:
+                if debug: print(f'_connect_hub exception: {e}')
                 if time.time() - tstart > timeout: break
                 time.sleep(init_retry_time)
         # undo isatty hack
