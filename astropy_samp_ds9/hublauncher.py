@@ -69,7 +69,7 @@ class DS9Hub:
                 __hub_found = True
                 break
             except (SAMPHubError, SAMPProxyError) as e:
-                if debug: print(f'_connect_hub exception: {e}')
+                if debug: print(f'_connect_hub exception: {e!r}')
                 if time.time() - tstart > timeout: break
                 time.sleep(init_retry_time)
         # undo isatty hack
