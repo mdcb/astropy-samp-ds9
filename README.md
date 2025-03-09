@@ -51,8 +51,8 @@ By default, it will use `$HOME/.samp-ds9/`, and create this directory as needed.
 
 * SAMP_HUB_EXE
 
-The samp_hub exectuable provided by astropy.
-By default, it uses `samp_hub` that must be in your PATH.
+The samp_hub executable provided by astropy.
+By default, it will use `samp_hub` that must be in your PATH.
 
 Miscellaneous
 -------------
