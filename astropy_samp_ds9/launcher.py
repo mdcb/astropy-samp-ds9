@@ -65,7 +65,7 @@ class DS9:
                 hub_timeout = timeout
 
             if noiraf: ds9args += ' -xpa no -unix none -fifo none -port 0'
-
+            if display := os.environ.get('DISPLAY'): ds9args += f" -display '{display}'"
             cmd = f"{DS9_EXE} -samp client yes {samp_hub_cmd} -samp web hub no -title '{title}' {ds9args}"
             os.environ['SAMP_HUB'] = f"std-lockurl:file://{samp_hub_file}"
             os.environ['XMODIFIERS'] = '@im=none' # fix ds9 (Tk) responsiveness on Wayland. see https://github.com/ibus/ibus/issues/2324#issuecomment-996449177
