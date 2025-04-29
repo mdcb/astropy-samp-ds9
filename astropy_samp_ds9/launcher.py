@@ -218,13 +218,26 @@ class DS9:
         self.exit(main_thread=False)
         if self.debug: print('watch_thread exit')
 
-    def set(self, *cmds, timeout=10):
+    # timeout=0 wait for ever
+    # timeout<0 do not wait
+    def set(self, *cmds, timeout=10, batch_timeout=False):
         with self.__lock:
+            timed_out_cmds = []
             for cmd in cmds:
                 if self.debug: print(f"set {cmd}")
-                self.__samp.ecall_and_wait(self.__samp_clientId, 'ds9.set', f"{int(timeout)}", cmd=cmd)
-
-    def get(self, cmd, timeout=0): # some commands like 'iexam key coordinate' are blocking, use timeout=0 by default XXX chnage the default to a reasonable value, use 0 when needed by the user
+                try:
+                    if timeout >= 0:
+                        self.__samp.ecall_and_wait(self.__samp_clientId, 'ds9.set', f"{int(timeout)}", cmd=cmd)
+                    else:
+                        self.__samp.ecall(self.__samp_clientId, 'samp::sync::call', 'ds9.set', cmd=cmd)
+                except Exception as e:
+                    if batch_timeout and type(e) == SAMPProxyError and e.faultString == 'Timeout expired!':
+                        timed_out_cmds.append(cmd)
+                    else:
+                        raise
+            if batch_timeout and timed_out_cmds:
+                raise TimeoutError(f"batch cmds {', '.join(timed_out_cmds)} timed out!") from None
+    def get(self, cmd, timeout=0): # some commands like 'iexam key coordinate' are blocking, use timeout=0 (wait forever) by default
         with self.__lock:
             if self.debug: print(f"get {cmd}")
             rc = self.__samp.ecall_and_wait(self.__samp_clientId, 'ds9.get', f"{int(timeout)}", cmd=cmd)
