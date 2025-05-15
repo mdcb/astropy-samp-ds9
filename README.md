@@ -3,6 +3,15 @@ astropy-samp-ds9
 
 Launch and interact with [SAOImageDS9](https://github.com/SAOImageDS9/SAOImageDS9), using the [SAMP](http://www.ivoa.net/Documents/latest/SAMP.html) protocol and client libraries provided by [Astropy SAMP](https://docs.astropy.org/en/stable/samp/index.html).
 
+Installation
+------------
+
+Using PyPI [astropy-samp-ds9](https://pypi.org/project/astropy-samp-ds9/).
+
+```
+pip install astropy-samp-ds9
+```
+
 Example
 -------
 
