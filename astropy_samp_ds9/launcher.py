@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 
-from astropy.samp import SAMPIntegratedClient
+from astropy.samp import SAMPIntegratedClient, conf as samp_conf
 from astropy.samp.errors import SAMPHubError, SAMPProxyError
 from datetime import datetime, UTC
 from pathlib import Path
@@ -32,8 +32,10 @@ class DS9:
                  poll_alive_time=5,                             # watcher thread poll time (seconds)
                  init_retry_time=1,                             # time to sleep between retries on init (seconds)
                  debug=False,                                   # debug output (very verbose)
-                 samp_hub_file=None                             # use samp_hub_file from an existing hub, rather than start a dedicated one attached to ds9
-                ):
+                 samp_hub_file=None,                            # use samp_hub_file from an existing hub, rather than start a dedicated one attached to ds9
+                 samp_conf_use_internet=False,                  # Whether to allow `astropy.samp` to use the internet, if available (conf default: True)
+                 samp_conf_n_retries=None,                      # How many times to retry communications when they fail (conf default: 10)
+                 ):
         self.debug = debug
         self.exit_callback = exit_callback
         self.kill_ds9_on_exit = kill_ds9_on_exit

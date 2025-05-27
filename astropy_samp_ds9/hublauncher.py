@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 
-from astropy.samp import SAMPIntegratedClient
+from astropy.samp import SAMPIntegratedClient, conf as samp_conf
 from astropy.samp.errors import SAMPHubError, SAMPProxyError
 from pathlib import Path
 import subprocess
@@ -24,7 +24,9 @@ class DS9Hub:
                  name,
                  timeout=15,                                    # time for hub to be fully SAMP functional (seconds)
                  init_retry_time=1,                             # time to sleep between retries on init (seconds)
-                 debug=False
+                 debug=False,
+                 samp_conf_use_internet=False,                  # Whether to allow `astropy.samp` to use the internet, if available (conf default: True)
+                 samp_conf_n_retries=None,                      # How many times to retry communications when they fail (conf default: 10)
                  ):
         '''
         Start a hub with a given name.
@@ -32,6 +34,8 @@ class DS9Hub:
         If it already exists and is alive, it's a noop.
         daemonize: make it persistent (let the hub running after python exits).
         '''
+        samp_conf.use_internet = samp_conf_use_internet
+        if samp_conf_n_retries != None: samp_conf.n_retries = samp_conf_n_retries
         user = os.environ.get('USER', 'anonymous')
         display = os.environ.get('DISPLAY', 'headless')
         # generate a SAMP_HUB from name, user and display
