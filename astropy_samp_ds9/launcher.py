@@ -32,6 +32,7 @@ class DS9:
                  poll_alive_time=5,                             # watcher thread poll time (seconds)
                  init_retry_time=1,                             # time to sleep between retries on init (seconds)
                  debug=False,                                   # debug output (very verbose)
+                 singleton=True,                                # if true, creates a truly unique instance, using time, PID. if false, creates an instance based on name and DISPLAY, that can be reattached
                  samp_hub_file=None,                            # use samp_hub_file from an existing hub, rather than start a dedicated one attached to ds9
                  samp_conf_use_internet=False,                  # Whether to allow `astropy.samp` to use the internet, if available (conf default: True)
                  samp_conf_n_retries=None,                      # How many times to retry communications when they fail (conf default: 10)
@@ -58,12 +59,18 @@ class DS9:
                 samp_hub_cmd = '-samp hub yes'
                 # generate a unique SAMP_HUB from title, timestamp, process PID
                 Path(SAMP_HUB_PATH).mkdir(mode=0o700, parents=True, exist_ok=True)
-                tnow = datetime.now(UTC)
-                samp_hub_name = f"ds9_{title}_utc{tnow.strftime('%Y%m%dT%H%M%S')}.{tnow.microsecond:06d}_pid{self.__pid}"
+                user = os.environ.get('USER', 'anonymous')
+                display = os.environ.get('DISPLAY', 'headless')
+                if singleton:
+                    tnow = datetime.now(UTC)
+                    samp_hub_name = f"ds9_{title}_{user}_{display}_utc{tnow.strftime('%Y%m%dT%H%M%S')}.{tnow.microsecond:06d}_pid{self.__pid}"
+                    ds9_spawn = True
+                else:
+                    samp_hub_name = f"ds9_{title}_{user}_{display}"
+                    ds9_spawn = False # don't know yet
                 samp_hub_name = re.sub(r'[^A-Za-z0-9\.:]', '_', samp_hub_name) # sanitized
                 samp_hub_file = self.__samp_hub_file = f"{SAMP_HUB_PATH}/{samp_hub_name}.samp"
                 ds9_ishub = True
-                ds9_spawn = True
                 hub_timeout = timeout
 
             if noiraf: ds9args += ' -xpa no -unix none -fifo none -port 0'
@@ -85,6 +92,16 @@ class DS9:
                 except:
                     # ds9 not found, spawn it
                     ds9_spawn = True
+            else:
+                if not singleton:
+                    # can we find our instance?
+                    try:
+                        self.__connect_hub(1)
+                        self.__connect_ds9(title, 1)
+                    except:
+                        if self.debug: print('pre-existing instance not found, spawning ds9')
+                        ds9_spawn = True
+
 
             if ds9_spawn:
                 # spawn ds9

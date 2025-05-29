@@ -17,6 +17,8 @@ Example
 
 * single ds9 instance (managing its own hub)
 
+Note: `singleton` (default=True), can be used to reattach existing instances sharing the same title, user and display
+
 ```
 from astropy_samp_ds9.launcher import DS9
 
@@ -28,6 +30,8 @@ res = ds9.get('iexam key coordinate')
 ```
 
 * ds9 instance(s) attached to an external hub. Those can be attached, re-attached, and controlled from different sessions.
+
+Caveat: blocking commands like `get('iexam key coordinate')` will not react to the ds9 window being killed.
 
 ```
 from astropy_samp_ds9.hublauncher import DS9Hub
