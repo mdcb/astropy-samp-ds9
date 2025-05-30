@@ -41,6 +41,8 @@ class DS9:
         self.exit_callback = exit_callback
         self.kill_ds9_on_exit = kill_ds9_on_exit
         self.kill_on_exit = kill_on_exit
+        samp_conf.use_internet = samp_conf_use_internet
+        if samp_conf_n_retries != None: samp_conf.n_retries = samp_conf_n_retries
         self.__init_retry_time = init_retry_time
         self.__watcher = None               # our watcher thread
         self.__lock = threading.Lock()      # Threaded SAMP access
@@ -81,7 +83,12 @@ class DS9:
             if self.debug:print(f"SAMP_HUB: {os.environ['SAMP_HUB']}")
 
             # SAMP client
-            self.__samp = SAMPIntegratedClient(name=f"{title} controller", callable=False)
+            sic_kwds = {
+                'name': f"{title} controller",
+                'callable': False,
+            }
+            if not samp_conf_use_internet: sic_kwds['addr'] = '127.0.0.1'
+            self.__samp = SAMPIntegratedClient(**sic_kwds)
             self.__samp_clientId = None
 
             if not ds9_ishub:
